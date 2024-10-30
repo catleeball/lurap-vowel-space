@@ -2,6 +2,7 @@ import argparse
 import sys
 from pathlib import Path
 
+import praatio.textgrid
 from ipapy import is_valid_ipa
 from praatio import textgrid
 from praatio.data_classes.textgrid import Textgrid
@@ -47,7 +48,13 @@ class Recording:
             orthography: set[str] = set()
             with open(orthograpy_path, 'r') as f:
                 for line in f:
-                    word, _ = line.split(sep='\t', maxsplit=1)
+                    line = line.strip()
+                    if not line:
+                        continue
+                    splitline = line.split(sep='\t', maxsplit=1)
+                    if not splitline:
+                        continue
+                    word = splitline[0]
                     orthography.add(word)
             if orthography:
                 self.orthography = orthography
@@ -55,8 +62,27 @@ class Recording:
         self.valid_words, self.invalid_words = Recording.validate_words(self.textgrid_data, self.orthography)
         self.valid_phones, self.invalid_phones = Recording.validate_phones(self.textgrid_data)
 
+    def __str__(self) -> str:
+        tier_validity = all((self.valid_tier_names, self.valid_tier_count, self.valid_tier_order))
+
+        summary = f'''-----
+        FILE:\t{self.textgrid_path}
+        TIERS:\t{emoji_bool(tier_validity)}\t{self.textgrid_data.tierNames}
+        PHONES:\t{emoji_bool(self.valid_phones)}
+        WORDS:\t{emoji_bool(self.valid_words)}
+        '''
+
+        if self.invalid_words:
+            summary += f'INVALID_WORDS:\t{', '.join(self.invalid_words)}\n'
+        if self.invalid_phones:
+            summary += f'INVALID_PHONES:\t{', '.join(self.invalid_phones)}\n'
+
+        return summary
+
     @staticmethod
     def validate_words(textgrid: Textgrid, orthography: set[str]) -> tuple[bool, set[str]]:
+        if not orthography:
+            return True, set()
         if 'word' not in textgrid.tierNames:
             return False, set()
 
@@ -64,7 +90,10 @@ class Recording:
         invalid_words = set()
         word_tier = textgrid.getTier('word')
 
-        for word in set(word_tier.entries):
+        for entry in word_tier.entries:
+            word = entry.label
+            if not word:
+                continue
             if word not in orthography:
                 validity = False
                 invalid_words.add(word)
@@ -75,18 +104,26 @@ class Recording:
     def validate_phones(textgrid: Textgrid) -> tuple[bool, set[str]]:
         if 'phone' not in textgrid.tierNames:
             return False, set()
-
         validity = True
         invalid_phones = set()
         phone_tier = textgrid.getTier('phone')
 
-        for phone in set(phone_tier.entries):
+        for entry in phone_tier.entries:
+            phone = entry.label
+            if not phone:
+                continue
             for char in phone:
                 if not is_valid_ipa(char):
                     validity = False
                     invalid_phones.add(char)
 
         return validity, invalid_phones
+
+
+def emoji_bool(b: bool) -> str:
+    if b:
+        return '✅'
+    return '❌'
 
 
 def get_args() -> tuple[list[Path], Path|None]:
@@ -148,7 +185,7 @@ def main():
     textgrid_paths, orthography_path = get_args()
 
     for textgrid_path in textgrid_paths:
-        validated_textgrid = Recording(textgrid_path, orthography_path)
+        print(Recording(textgrid_path, orthography_path))
 
 
 if __name__ == '__main__':
