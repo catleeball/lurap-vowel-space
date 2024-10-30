@@ -33,6 +33,10 @@ class Recording:
     def valid_tier_order(self) -> bool:
         return ('phone', 'word', 'phrase', 'notes') == self.textgrid_data.tierNames
 
+    @property
+    def valid_tiers(self) -> bool:
+        return all((self.valid_tier_order, self.valid_tier_count, self.valid_tier_names))
+
     def __init__(
             self,
             textgrid_path: Path,
@@ -63,11 +67,9 @@ class Recording:
         self.valid_phones, self.invalid_phones = Recording.validate_phones(self.textgrid_data)
 
     def __str__(self) -> str:
-        tier_validity = all((self.valid_tier_names, self.valid_tier_count, self.valid_tier_order))
-
         summary = f'''
         FILE:\t{self.textgrid_path}
-        TIERS:\t{emoji_bool(tier_validity)}\t{self.textgrid_data.tierNames}
+        TIERS:\t{emoji_bool(self.valid_tiers)}\t{self.textgrid_data.tierNames}
         PHONES:\t{emoji_bool(self.valid_phones)}
         WORDS:\t{emoji_bool(self.valid_words)}
         '''
@@ -78,6 +80,10 @@ class Recording:
             summary += f'INVALID_PHONES:\t{', '.join(self.invalid_phones)}\n'
 
         return summary
+
+    def to_tsv_line(self) -> str:
+        # TSV Headers: FILENAME\tTIERS_VALID\tPHONES_VALID\tWORDS_VALID\tINVALID_PHONES\tINVALID_WORDS\t
+        return f'{self.textgrid_path}\t{int(self.valid_tiers)}\t{int(self.valid_phones)}\t{' ; '.join(self.invalid_phones)}\t{' ; '.join(self.invalid_words)}\t'
 
     @staticmethod
     def validate_words(textgrid: Textgrid, orthography: set[str]) -> tuple[bool, set[str]]:
@@ -184,8 +190,14 @@ def get_args() -> tuple[list[Path], Path|None]:
 def main():
     textgrid_paths, orthography_path = get_args()
 
+    tsv_output = ['FILENAME\tTIERS_VALID\tPHONES_VALID\tWORDS_VALID\tINVALID_PHONES\tINVALID_WORDS\t']
+
     for textgrid_path in textgrid_paths:
-        print(Recording(textgrid_path, orthography_path))
+        validity = Recording(textgrid_path, orthography_path)
+        # print(validity)
+        tsv_output.append(validity.to_tsv_line())
+
+    print(tsv_output)
 
 
 if __name__ == '__main__':
