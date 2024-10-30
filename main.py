@@ -1,64 +1,59 @@
 import argparse
+import sys
+from pathlib import Path
 
+from ipapy import is_valid_ipa
 from praatio import textgrid
 from praatio.data_classes.textgrid import Textgrid
-from ipapy import is_valid_ipa
-
-from dataclasses import dataclass
+from termcolor import colored
 
 
-@dataclass(frozen=True)
 class Recording:
-    textgrid_file_path: str
+    textgird_path: Path
     textgrid_data: Textgrid
-    audio_file_path: str | None = None
-
-
-@dataclass(frozen=True)
-class RecordingValidity:
-    """Things we want to validate for a given Recording (and methods to perform such validation)."""
-    # Must have 4 tiers
-    valid_tier_count: bool
-    # Tiers are named 'phone', 'word', 'phrase', and 'notes'
-    valid_tier_names: bool
-    # Tiers are in the order ['phone', 'word', 'phrase', 'notes']
-    valid_tier_order: bool
     # All words are in the orthography (and spelled correctly).
     valid_words: bool
     # Phones are all single IPA phones
     valid_phones: bool
-    invalid_words: set[str]
-    invalid_phones: set[str]
+    invalid_words: set[str] = []
+    invalid_phones: set[str] = []
+    orthography_path: Path | None = None
+    orthography: set[str] | None = None
 
-    @staticmethod
-    def validate(recording: Recording) -> 'RecordingValidity':
-        """Given a recording, check for validity using all validation methods."""
-        valid_tier_count = RecordingValidity.validate_tier_count(recording.textgrid_data)
-        valid_tier_names = RecordingValidity.validate_tier_names(recording.textgrid_data)
-        valid_tier_order = RecordingValidity.validate_tier_order(recording.textgrid_data)
-        valid_words, invalid_words = RecordingValidity.validate_words(recording.textgrid_data)
-        valid_phones, invalid_phones = RecordingValidity.validate_phones(recording.textgrid_data)
-        return RecordingValidity(
-            valid_tier_count=valid_tier_count,
-            valid_tier_names=valid_tier_names,
-            valid_tier_order=valid_tier_order,
-            valid_words=valid_words,
-            valid_phones=valid_phones,
-            invalid_words=invalid_words,
-            invalid_phones=invalid_phones
-        )
+    @property
+    def valid_tier_count(self) -> bool:
+        return len(self.textgrid_data.tiers) == 4
 
-    @staticmethod
-    def validate_tier_count(textgrid: Textgrid) -> bool:
-        return len(textgrid.tiers) == 4
+    @property
+    def valid_tier_names(self) -> bool:
+        return {'phone', 'word', 'phrase', 'notes'} == set(self.textgrid_data.tierNames)
 
-    @staticmethod
-    def validate_tier_names(textgrid: Textgrid) -> bool:
-        return {'phone', 'word', 'phrase', 'notes'} == set(textgrid.tierNames)
+    @property
+    def valid_tier_order(self) -> bool:
+        return ('phone', 'word', 'phrase', 'notes') == self.textgrid_data.tierNames
 
-    @staticmethod
-    def validate_tier_order(textgrid: Textgrid) -> bool:
-        return ('phone', 'word', 'phrase', 'notes') == set(textgrid.tierNames)
+    def __init__(
+            self,
+            textgrid_path: Path,
+            orthograpy_path: Path | None = None
+    ):
+        """Given a textgrid, validate attributes of the transcription."""
+        self.textgrid_path = textgrid_path
+        self.textgrid_data = textgrid.openTextgrid(str(textgrid_path), includeEmptyIntervals=False)
+        self.orthography_path = orthograpy_path
+
+        # TODO: Also check IPA transcriptions in phones, but for now, just get the first column
+        if orthograpy_path and orthograpy_path.exists():
+            orthography: set[str] = set()
+            with open(orthograpy_path, 'r') as f:
+                for line in f:
+                    word, _ = line.split(sep='\t', maxsplit=1)
+                    orthography.add(word)
+            if orthography:
+                self.orthography = orthography
+
+        self.valid_words, self.invalid_words = Recording.validate_words(self.textgrid_data, self.orthography)
+        self.valid_phones, self.invalid_phones = Recording.validate_phones(self.textgrid_data)
 
     @staticmethod
     def validate_words(textgrid: Textgrid, orthography: set[str]) -> tuple[bool, set[str]]:
@@ -94,18 +89,66 @@ class RecordingValidity:
         return validity, invalid_phones
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    # todo: write arg parser for individual files and directories with many fils
-    main()
+def get_args() -> tuple[list[Path], Path|None]:
+    parser = argparse.ArgumentParser(
+        prog='Textgrid Validator',
+        description='''Validates Praat TextGrid annotations.
 
-    # tg = textgrid.openTextgrid(
-    #     fnFullPath='/Users/catball/data/lurap/Completed_transcriptions/kâârö_vowelspace_transcribed.TextGrid',
-    #     includeEmptyIntervals=True,
-    # )
-    # tiers = tg.tiers
-    # for tier in tiers:
-    #     print(tier.name)
+        Validates the following features of a TextGrid:
+            - Contains tiers in order: (phone, word, phrase, notes)
+            - Words exist in the orthography (if one is specified with --orthography)
+            - Phones are valid IPA phones
+
+        One or both of --textgrid and --directory must be specified.
+        If --orthography is not specified, words will not be checked for validity.
+        ''',
+        add_help=True,
+        epilog='Github repo for this program: https://github.com/catleeball/lurap-vowel-space'
+    )
+    parser.add_argument('-t', '--textgrid', type=Path,
+                        help='Praat textgrid file path.')
+    parser.add_argument('-d', '--directory', type=Path,
+                        help='Directory containing a number of Praat textgrid files.')
+    parser.add_argument('-o', '--orthography', type=Path,
+                        help='Tab-separated file containing orthography. Used to check word validity. First column should be word, second column should be IPA pronunciation.')
+    args = parser.parse_args()
+
+    if not args.textgrid and not args.directory:
+        print(colored(text='Error: Please specify a textgrid file with --textgrid or a directory containing textgrid files with --orthography.', color='red'), file=sys.stderr)
+
+    if not args.orthography:
+        print(colored(text="Warning: If an orthography file isn't specified with --orthography, words will not be validated for spelling and inclusion in the orthography.", color='yellow'), file=sys.stderr)
+
+    if args.orthography and not args.orthography.exists():
+        print(colored(text=f'Warning: Path {str(args.orthography)} does not exist.', color='yellow'), file=sys.stderr)
+
+    # TODO: make this less nested, break this out into another function
+    paths: list[Path] = []
+    for path in (args.textgrid, args.directory):
+        path: Path
+        if path and path.exists():
+            if path.is_dir():
+                files: list[Path] = [i for i in path.iterdir() if i.is_file()]
+                files = [i for i in files if i.name.lower().endswith('textgrid')]
+                if not files:
+                    print(colored(text=f'Warning: Directory {str(path)} contains no textgrid files.', color='yellow'), file=sys.stderr)
+                paths.extend(files)
+            else:
+                paths.append(path)
+        if path and not path.exists():
+            print(colored(text=f'Warning: Path {str(path)} does not exist.', color='yellow'), file=sys.stderr)
+
+    if not paths:
+        print(colored(text=f'Error: No textgird files exist in --textgrid or --directory.', color='red'), file=sys.stderr)
+
+    return paths, args.orthography
+
+
+def main():
+    textgrid_paths, orthography_path = get_args()
+
+    for textgrid_path in textgrid_paths:
+        validated_textgrid = Recording(textgrid_path, orthography_path)
 
 
 if __name__ == '__main__':
