@@ -65,7 +65,7 @@ class Recording:
     def __str__(self) -> str:
         tier_validity = all((self.valid_tier_names, self.valid_tier_count, self.valid_tier_order))
 
-        summary = f'''-----
+        summary = f'''
         FILE:\t{self.textgrid_path}
         TIERS:\t{emoji_bool(tier_validity)}\t{self.textgrid_data.tierNames}
         PHONES:\t{emoji_bool(self.valid_phones)}
