@@ -1,5 +1,6 @@
 import argparse
 import sys
+from functools import cached_property
 from pathlib import Path
 import csv
 
@@ -33,7 +34,7 @@ class Recording:
         """Assert whether there's four tiers."""
         return len(self.textgrid_data.tiers) == 4
 
-    @property
+    @cached_property
     def valid_tier_names(self) -> bool:
         """Assert whether tiers are names correctly."""
         return {'phone', 'word', 'phrase', 'notes'} == set(self.textgrid_data.tierNames)
@@ -43,7 +44,7 @@ class Recording:
         """Assert whether tiers are in order."""
         return ('phone', 'word', 'phrase', 'notes') == self.textgrid_data.tierNames
 
-    @property
+    @cached_property
     def valid_tiers(self) -> bool:
         """Assert whether tiers have the correct names in the correct order."""
         return all((self.valid_tier_order, self.valid_tier_count, self.valid_tier_names))
