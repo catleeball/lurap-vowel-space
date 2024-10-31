@@ -193,6 +193,7 @@ def get_args() -> tuple[list[Path], Path|None]:
 
     if not args.textgrid and not args.directory:
         print(colored(text='Error: Please specify a textgrid file with --textgrid or a directory containing textgrid files with --orthography.', color='red'), file=sys.stderr)
+        exit(1)
 
     if not args.orthography:
         print(colored(text="Warning: If an orthography file isn't specified with --orthography, words will not be validated for spelling and inclusion in the orthography.", color='yellow'), file=sys.stderr)
@@ -204,6 +205,7 @@ def get_args() -> tuple[list[Path], Path|None]:
 
     if not paths:
         print(colored(text=f'Error: No textgird files exist in --textgrid or --directory.', color='red'), file=sys.stderr)
+        exit(1)
 
     return paths, args.orthography
 
