@@ -98,10 +98,11 @@ class Recording:
             invalid_phones = ' '.join(self.invalid_phone_set)
         return {
             'FILENAME': self.textgrid_path.name,
-            'TIERS_ARE_VALID': self.valid_tiers,
-            'PHONES_ARE_VALID': self.valid_phones,
-            'INVALID_PHONES': invalid_words,
-            'INVALID_WORDS': invalid_phones,
+            'TIERS_VALID': self.valid_tiers,
+            'PHONES_VALID': self.valid_phones,
+            'WORDS_VALID': self.valid_words,
+            'INVALID_PHONES': invalid_phones,
+            'INVALID_WORDS': invalid_words,
         }
 
     @staticmethod
@@ -240,7 +241,7 @@ def write_csv_report(textgrids: list[Recording]):
         raise ValueError('No textgrid validations to write to report!')
 
     with open('validation_report.csv', 'w', newline='') as csvfile:
-        filednames = ['FILENAME', 'TIERS_ARE_VALID', 'PHONES_ARE_VALID', 'INVALID_PHONES', 'INVALID_WORDS',]
+        filednames = ['FILENAME', 'TIERS_VALID', 'PHONES_VALID', 'WORDS_VALID', 'INVALID_PHONES', 'INVALID_WORDS',]
         writer = csv.DictWriter(csvfile, fieldnames=filednames)
         writer.writeheader()
         for textgrid in textgrids:
