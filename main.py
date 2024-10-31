@@ -117,6 +117,7 @@ class Recording:
 
     @staticmethod
     def validate_words(textgrid: Textgrid, orthography: set[str]) -> tuple[bool, set[str]]:
+        """Check that all words in the word tier exist in the orthography."""
         if not orthography:
             return True, set()
         if 'word' not in textgrid.tierNames:
@@ -138,6 +139,7 @@ class Recording:
 
     @staticmethod
     def validate_phones(textgrid: Textgrid) -> tuple[bool, set[str]]:
+        """Check that all phones in the phone tier are valid IPA characters."""
         if 'phone' not in textgrid.tierNames:
             return False, set()
         validity = True
@@ -157,12 +159,14 @@ class Recording:
 
 
 def emoji_bool(b: bool) -> str:
+    """For human-readable output, represent booleans as colorful emoji."""
     if b:
         return '✅'
     return '❌'
 
 
 def get_args() -> tuple[list[Path], Path|None]:
+    """Parse and validate command line arguments."""
     parser = argparse.ArgumentParser(
         prog='Textgrid Validator',
         description='''Validates Praat TextGrid annotations.
@@ -195,21 +199,7 @@ def get_args() -> tuple[list[Path], Path|None]:
     if args.orthography and not args.orthography.exists():
         print(colored(text=f'Warning: Path {str(args.orthography)} does not exist.', color='yellow'), file=sys.stderr)
 
-    # TODO: make this less nested, break this out into another function
-    paths: list[Path] = []
-    for path in (args.textgrid, args.directory):
-        path: Path
-        if path and path.exists():
-            if path.is_dir():
-                files: list[Path] = [i for i in path.iterdir() if i.is_file()]
-                files = [i for i in files if i.name.lower().endswith('textgrid')]
-                if not files:
-                    print(colored(text=f'Warning: Directory {str(path)} contains no textgrid files.', color='yellow'), file=sys.stderr)
-                paths.extend(files)
-            else:
-                paths.append(path)
-        if path and not path.exists():
-            print(colored(text=f'Warning: Path {str(path)} does not exist.', color='yellow'), file=sys.stderr)
+    paths = get_textgrid_file_paths(args)
 
     if not paths:
         print(colored(text=f'Error: No textgird files exist in --textgrid or --directory.', color='red'), file=sys.stderr)
@@ -217,9 +207,35 @@ def get_args() -> tuple[list[Path], Path|None]:
     return paths, args.orthography
 
 
+def get_textgrid_file_paths(args: argparse.Namespace):
+    """Get textgrid files from CLI arguments"""
+    paths: list[Path] = []
+    for path in (args.textgrid, args.directory):
+        path: Path
+        if path and path.exists():
+            if path.is_dir():
+                paths.extend(get_textgrid_files_from_directory(path))
+            else:
+                # Don't assert path.is_file() in case this is a symlink we need to follow
+                paths.append(path)
+        if path and not path.exists():
+            print(colored(text=f'Warning: Path {str(path)} does not exist.', color='yellow'), file=sys.stderr)
+
+
+def get_textgrid_files_from_directory(path: Path):
+    """Get files that end in .textgrid from the given directory path. Don't recurse the entire directory structure."""
+    files: list[Path] = [i for i in path.iterdir() if i.is_file()]
+    files = [i for i in files if i.name.lower().endswith('textgrid')]
+    if not files:
+        print(colored(text=f'Warning: Directory {str(path)} contains no textgrid files.', color='yellow'),
+              file=sys.stderr)
+    return files
+
+
 def main():
     textgrid_paths, orthography_path = get_args()
 
+    # Header for TSV file
     tsv_output = ['FILENAME\tTIERS_VALID\tPHONES_VALID\tWORDS_VALID\tINVALID_PHONES\tINVALID_WORDS\t']
 
     for textgrid_path in textgrid_paths:
