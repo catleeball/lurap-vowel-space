@@ -1,4 +1,5 @@
 import argparse
+import csv
 import sys
 from functools import cached_property
 from pathlib import Path
@@ -17,9 +18,10 @@ class Recording:
     valid_words: bool
     # Assert whether phones are all single IPA phones
     valid_phones: bool
-    # Record when invalid words or phones are detected.
+    # TODO: record times in the file where invalid phones & words are detected
     invalid_phones: dict = {}
     invalid_words: dict = {}
+    # Record when invalid words or phones are detected.
     invalid_word_set: set[str] = set()
     invalid_phone_set: set[str] = set()
     # TSV file containing the orthography, where words are the first column. Further columns not yet used.
@@ -70,7 +72,7 @@ class Recording:
     def __str__(self) -> str:
         """Human-readable summary of the validation"""
         summary = f'''
-        FILE:\t{self.textgrid_path}
+        FILE:\t{self.textgrid_path.name}
         TIERS:\t{emoji_bool(self.valid_tiers)}\t{self.textgrid_data.tierNames}
         PHONES:\t{emoji_bool(self.valid_phones)}
         WORDS:\t{emoji_bool(self.valid_words)}
@@ -83,20 +85,23 @@ class Recording:
 
         return summary
 
-    def to_tsv_line(self) -> str:
-        # TSV Headers: FILENAME\tTIERS_VALID\tPHONES_VALID\tWORDS_VALID\tINVALID_PHONES\tINVALID_WORDS\t
-        return f'{self.textgrid_path}\t{int(self.valid_tiers)}\t{int(self.valid_phones)}\t{' ; '.join(self.invalid_phone_set)}\t{' ; '.join(self.invalid_word_set)}\n'
+    # def to_tsv_line(self) -> str:
+    #     # TSV Headers: FILENAME\tTIERS_VALID\tPHONES_VALID\tWORDS_VALID\tINVALID_PHONES\tINVALID_WORDS\t
+    #     return f'{self.textgrid_path.name}\t{int(self.valid_tiers)}\t{int(self.valid_phones)}\t{' ; '.join(self.invalid_phone_set)}\t{' ; '.join(self.invalid_word_set)}\n'
 
     def to_dict(self) -> dict:
+        invalid_words = None
+        invalid_phones = None
+        if self.invalid_word_set:
+            invalid_words = ' '.join(self.invalid_word_set)
+        if self.invalid_phone_set:
+            invalid_phones = ' '.join(self.invalid_phone_set)
         return {
-            'FILENAME': str(self.textgrid_path),
+            'FILENAME': self.textgrid_path.name,
             'TIERS_ARE_VALID': self.valid_tiers,
-            # 'TIER_COUNT_VALID': self.valid_tier_count,
-            # 'TIER_NAMES_VALID': self.valid_tier_names,
-            # 'TIER_ORDER_VALID': self.valid_tier_order,
             'PHONES_ARE_VALID': self.valid_phones,
-            'INVALID_PHONES': self.invalid_phone_set,
-            'INVALID_WORDS': self.invalid_word_set,
+            'INVALID_PHONES': invalid_words,
+            'INVALID_WORDS': invalid_phones,
         }
 
     @staticmethod
@@ -190,8 +195,7 @@ def get_args() -> tuple[list[Path], Path|None]:
     args = parser.parse_args()
 
     if not args.textgrid and not args.directory:
-        print(colored(text='Error: Please specify a textgrid file with --textgrid or a directory containing textgrid files with --orthography.', color='red'), file=sys.stderr)
-        exit(1)
+        raise IOError(colored(text='Error: Please specify a textgrid file with --textgrid or a directory containing textgrid files with --orthography.', color='red'))
 
     if not args.orthography:
         print(colored(text="Warning: If an orthography file isn't specified with --orthography, words will not be validated for spelling and inclusion in the orthography.", color='yellow'), file=sys.stderr)
@@ -202,8 +206,7 @@ def get_args() -> tuple[list[Path], Path|None]:
     paths = get_textgrid_file_paths(args)
 
     if not paths:
-        print(colored(text=f'Error: No textgird files exist in --textgrid or --directory.', color='red'), file=sys.stderr)
-        exit(1)
+        raise IOError(colored(text=f'Error: No textgird files exist in --textgrid or --directory.', color='red'))
 
     return paths, args.orthography
 
@@ -229,23 +232,42 @@ def get_textgrid_files_from_directory(path: Path) -> list[Path]:
     files: list[Path] = [i for i in path.iterdir() if i.is_file()]
     files = [i for i in files if i.name.lower().endswith('textgrid')]
     if not files:
-        print(colored(text=f'Warning: Directory {str(path)} contains no textgrid files.', color='yellow'),
-              file=sys.stderr)
+        print(colored(text=f'Warning: Directory {str(path)} contains no textgrid files.', color='yellow'), file=sys.stderr)
     return files
+
+def write_csv_report(textgrids: list[Recording]):
+    if not textgrids:
+        raise ValueError('No textgrid validations to write to report!')
+
+    with open('validation_report.csv', 'w', newline='') as csvfile:
+        filednames = ['FILENAME', 'TIERS_ARE_VALID', 'PHONES_ARE_VALID', 'INVALID_PHONES', 'INVALID_WORDS',]
+        writer = csv.DictWriter(csvfile, fieldnames=filednames)
+        writer.writeheader()
+        for textgrid in textgrids:
+            writer.writerow(textgrid.to_dict())
 
 
 def main():
     textgrid_paths, orthography_path = get_args()
+    # TODO: add cli args for:
+    # - no cli output
+    # - specify tsv file output location
+    # TODO: reconsider behavior of program when no orthography supplied
 
     # Header for TSV file
-    tsv_output = ['FILENAME\tTIERS_VALID\tPHONES_VALID\tWORDS_VALID\tINVALID_PHONES\tINVALID_WORDS\t']
+    tsv_output = []
 
+    validated_textgrids = []
     for textgrid_path in textgrid_paths:
-        validity = Recording(textgrid_path, orthography_path)
-        # print(validity)
-        tsv_output.append(validity.to_tsv_line())
+        validated_textgrid = Recording(textgrid_path, orthography_path)
+        validated_textgrids.append(validated_textgrid)
+        # Print to stdout a human-readable summary of validation for each file
+        print(validated_textgrid)
 
-    print(tsv_output)
+    if not validated_textgrids:
+        raise ValueError('No textgrid validations to write to report!')
+
+    write_csv_report(validated_textgrids)
 
 
 if __name__ == '__main__':
