@@ -255,9 +255,6 @@ def main():
     # - specify tsv file output location
     # TODO: reconsider behavior of program when no orthography supplied
 
-    # Header for TSV file
-    tsv_output = []
-
     validated_textgrids = []
     for textgrid_path in textgrid_paths:
         validated_textgrid = Recording(textgrid_path, orthography_path)
