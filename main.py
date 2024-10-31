@@ -1,6 +1,7 @@
 import argparse
 import sys
 from pathlib import Path
+import csv
 
 import praatio.textgrid
 from ipapy import is_valid_ipa
@@ -10,31 +11,41 @@ from termcolor import colored
 
 
 class Recording:
+    # Location of the textgrid file.
     textgird_path: Path
     textgrid_data: Textgrid
-    # All words are in the orthography (and spelled correctly).
+    # Assert whether all words are in the orthography (and spelled correctly).
     valid_words: bool
-    # Phones are all single IPA phones
+    # Assert whether phones are all single IPA phones
     valid_phones: bool
-    invalid_words: set[str] = []
-    invalid_phones: set[str] = []
+    # Record when invalid words or phones are detected.
+    invalid_phones: dict = {}
+    invalid_words: dict = {}
+    invalid_word_set: set[str] = set()
+    invalid_phone_set: set[str] = set()
+    # TSV file containing the orthography, where words are the first column. Further columns not yet used.
+    # If orthography is not supplied, word verification will simply return true.
     orthography_path: Path | None = None
     orthography: set[str] | None = None
 
     @property
     def valid_tier_count(self) -> bool:
+        """Assert whether there's four tiers."""
         return len(self.textgrid_data.tiers) == 4
 
     @property
     def valid_tier_names(self) -> bool:
+        """Assert whether tiers are names correctly."""
         return {'phone', 'word', 'phrase', 'notes'} == set(self.textgrid_data.tierNames)
 
     @property
     def valid_tier_order(self) -> bool:
+        """Assert whether tiers are in order."""
         return ('phone', 'word', 'phrase', 'notes') == self.textgrid_data.tierNames
 
     @property
     def valid_tiers(self) -> bool:
+        """Assert whether tiers have the correct names in the correct order."""
         return all((self.valid_tier_order, self.valid_tier_count, self.valid_tier_names))
 
     def __init__(
@@ -47,26 +58,18 @@ class Recording:
         self.textgrid_data = textgrid.openTextgrid(str(textgrid_path), includeEmptyIntervals=False)
         self.orthography_path = orthograpy_path
 
-        # TODO: Also check IPA transcriptions in phones, but for now, just get the first column
+        # TODO: Also check IPA transcriptions in orthography match the phone tier transcriptions,
+        #  but for now, just get the first column for word verification.
         if orthograpy_path and orthograpy_path.exists():
-            orthography: set[str] = set()
-            with open(orthograpy_path, 'r') as f:
-                for line in f:
-                    line = line.strip()
-                    if not line:
-                        continue
-                    splitline = line.split(sep='\t', maxsplit=1)
-                    if not splitline:
-                        continue
-                    word = splitline[0]
-                    orthography.add(word)
+            orthography = Recording._parse_orthography(orthograpy_path)
             if orthography:
                 self.orthography = orthography
 
-        self.valid_words, self.invalid_words = Recording.validate_words(self.textgrid_data, self.orthography)
-        self.valid_phones, self.invalid_phones = Recording.validate_phones(self.textgrid_data)
+        self.valid_words, self.invalid_word_set = Recording.validate_words(self.textgrid_data, self.orthography)
+        self.valid_phones, self.invalid_phone_set = Recording.validate_phones(self.textgrid_data)
 
     def __str__(self) -> str:
+        """Human-readable summary of the validation"""
         summary = f'''
         FILE:\t{self.textgrid_path}
         TIERS:\t{emoji_bool(self.valid_tiers)}\t{self.textgrid_data.tierNames}
@@ -74,16 +77,43 @@ class Recording:
         WORDS:\t{emoji_bool(self.valid_words)}
         '''
 
-        if self.invalid_words:
-            summary += f'INVALID_WORDS:\t{', '.join(self.invalid_words)}\n'
-        if self.invalid_phones:
-            summary += f'INVALID_PHONES:\t{', '.join(self.invalid_phones)}\n'
+        if self.invalid_word_set:
+            summary += f'INVALID_WORDS:\t{', '.join(self.invalid_word_set)}\n'
+        if self.invalid_phone_set:
+            summary += f'INVALID_PHONES:\t{', '.join(self.invalid_phone_set)}\n'
 
         return summary
 
     def to_tsv_line(self) -> str:
         # TSV Headers: FILENAME\tTIERS_VALID\tPHONES_VALID\tWORDS_VALID\tINVALID_PHONES\tINVALID_WORDS\t
-        return f'{self.textgrid_path}\t{int(self.valid_tiers)}\t{int(self.valid_phones)}\t{' ; '.join(self.invalid_phones)}\t{' ; '.join(self.invalid_words)}\t'
+        return f'{self.textgrid_path}\t{int(self.valid_tiers)}\t{int(self.valid_phones)}\t{' ; '.join(self.invalid_phone_set)}\t{' ; '.join(self.invalid_word_set)}\n'
+
+    def to_dict(self) -> dict:
+        return {
+            'FILENAME': str(self.textgrid_path),
+            'TIERS_ARE_VALID': self.valid_tiers,
+            # 'TIER_COUNT_VALID': self.valid_tier_count,
+            # 'TIER_NAMES_VALID': self.valid_tier_names,
+            # 'TIER_ORDER_VALID': self.valid_tier_order,
+            'PHONES_ARE_VALID': self.valid_phones,
+            'INVALID_PHONES': self.invalid_phone_set,
+            'INVALID_WORDS': self.invalid_word_set,
+        }
+
+    @staticmethod
+    def _parse_orthography(orthography_path: Path) -> set[str]:
+        orthography: set[str] = set()
+        with open(orthography_path, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                splitline = line.split(sep='\t', maxsplit=1)
+                if not splitline:
+                    continue
+                word = splitline[0]
+                orthography.add(word)
+        return orthography
 
     @staticmethod
     def validate_words(textgrid: Textgrid, orthography: set[str]) -> tuple[bool, set[str]]:
