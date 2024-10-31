@@ -210,7 +210,7 @@ def get_args() -> tuple[list[Path], Path|None]:
     return paths, args.orthography
 
 
-def get_textgrid_file_paths(args: argparse.Namespace):
+def get_textgrid_file_paths(args: argparse.Namespace) -> list[Path]:
     """Get textgrid files from CLI arguments"""
     paths: list[Path] = []
     for path in (args.textgrid, args.directory):
@@ -223,9 +223,10 @@ def get_textgrid_file_paths(args: argparse.Namespace):
                 paths.append(path)
         if path and not path.exists():
             print(colored(text=f'Warning: Path {str(path)} does not exist.', color='yellow'), file=sys.stderr)
+    return paths
 
 
-def get_textgrid_files_from_directory(path: Path):
+def get_textgrid_files_from_directory(path: Path) -> list[Path]:
     """Get files that end in .textgrid from the given directory path. Don't recurse the entire directory structure."""
     files: list[Path] = [i for i in path.iterdir() if i.is_file()]
     files = [i for i in files if i.name.lower().endswith('textgrid')]
