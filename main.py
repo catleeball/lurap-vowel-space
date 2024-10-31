@@ -2,9 +2,7 @@ import argparse
 import sys
 from functools import cached_property
 from pathlib import Path
-import csv
 
-import praatio.textgrid
 from ipapy import is_valid_ipa
 from praatio import textgrid
 from praatio.data_classes.textgrid import Textgrid
