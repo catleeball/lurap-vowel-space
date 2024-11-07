@@ -1,0 +1,24 @@
+FILENAME,TIERS_VALID,PHONES_VALID,WORDS_VALID,INVALID_PHONES,INVALID_WORDS
+pukkjora_vowelspace_transcribed_1.TextGrid,True,False,False,ï ( ÿ ê â ô ö ) ä ë,pôôpy söppu
+pêhamïrï_vowelspace_aligned.TextGrid,True,False,False,ũ õ ĩ ẽ,siipjɔ u sasɪ k pɾiipää ipːe paɾɪ tuːɾi tuso sose popo paːɾi pïɾï jukɾi nampoː sɔkɾɛ jukɾii ippe j poːpu koːti poɾi mÿnpjo sopa koŋkɔ sepjɔ sɔti momyŋ papaa nânpöö pepe ŋ mɤ̃mɤ̃ tɛsi pyɾa sïïpjɔ paːko muŋkja sopuː i pɾiipaa piɾɪ a puutã s mamyŋ papaː puːtaa sotɔ kɾipi popaː pakɾɛː sese tɛːpi e h kɾiipi suːpjo mspnmpjɔ puːtä koko tɔti sotɪ hasspn twatum sosɔ tuma mama hatɛ soso haku kuːpa pepjɔ mɪtɛ peɾɪ pako kɾɛːjo
+sasura_vowelspace_transcribed.TextGrid,True,False,True,ĩ õ ẽ ã ũ,
+kôräkoko_vowelspace_aligned.TextGrid,False,False,False,ĩ õ ẽ ã ũ,mspnmpjɔ uː koːti muŋkja aː poɾi sopuː u koko sopaː i sasɪ k tɔti ɾ sotɪ a papa p tuːɾi tuso s sose popo paːɾi spn ikoŋ koŋkɔ papaː sepjɔ sotɔ sɔti paːɾɪ twatum mama t pakɾɛː hapjaŋ sese hatɛ puːta pepe tɛːpi e h pɾspnpaː nampoː soso kuːpa ŋ sɔkɾɛ pepjɔ mɪtɛ tɛsi hakuː peɾɪ ippe paːko kɾɛːjo suːpjo j poːpu
+sâpaapo_vowelspace_transcribed.TextGrid,True,False,False,ĩ õ ẽ ã ũ,mÿn_pjo pëë_pjo jy_krii sêê_pjo sïï_pjo puu_tä myn_pjo
+tetâta_vowelspace_transcribed.TextGrid,False,False,False,ÿ ĩ õ ẽ ã ë í ũ,
+sokreten_vowelspace_aligned.TextGrid,True,False,False,ï ÿ ö ä ë,uː aː u i k ɛ ɯː n ɾ ũ oː ĩː us a m ɯ̃ː p ɯ̃ õ ɔː s ɛː ã ɤ ãː ɔ o t ɯ ũː e ɤː h ẽː ẽ ŋ ĩ w õː eː pː ɲ iː j
+parisê_vowelspace_aligned.TextGrid,True,False,False,ĩ õ ẽ ã ũ,koːti muŋkja poɾi sopuː u koko sopaː i sasɪ k tɔti myn pjo sotɪ a papa tuːɾi tuso s sose hasspn popo paːɾi koŋkɔ papaː sepjɔ sotɔ sɔti paːɾɪ twatum pspnɾɪ sosɔ mama pakɾɛː sspnpjɔ sese hatɛ puːta pepe tɛːpi e h nampoː soso kuːpa ŋ sɔkɾɛ pepjɔ mɪtɛ tɛsi hakuː peɾɪ paːko kɾɛːjo suːpjo j poːpu
+saankôrä_vowelspace_transcribed.TextGrid,True,False,False,ĩ ã ô õ ũ ? : ẽ,pärïː päri myn pjo
+syrinto_vowelspace_transcribed.TextGrid,True,False,False,ĩ õ ẽ ã ũ,mÿn_pjo pëë_pjo jy_krii sêê_pjo sïï_pjo pôːpy puu_tä myn_pjo
+kâräpô_vowelspace_transcribed_2.TextGrid,True,False,True,ĩ õ ẽ ã ũ,
+pyssy_vowelspace_transcribed_2.TextGrid,False,False,False,ï ÿ ê ô â ö ä ã ë,uː aː u i k ɛ ɯː n ɾ ũ oː ĩː a m ɯ̃ː p ɯ̃ õ ɔː s ɛː ã ɤ ãː ɔ t o ɯ ũː e ɤː h ẽː ẽ ŋ ĩ w õː eː pː iː j
+kâârö_vowelspace_transcribed.TextGrid,True,False,False,ĩ õ ẽ ã ũ,mÿn_pjo pëë_pjo jy_krii sêê_pjo sïï_pjo puu_tä myn_pjo
+sêêtâ_vowelspace_transcribed.TextGrid,True,False,False,ĩ õ ẽ ã ũ,mÿn_pjo pëë_pjo jy_krii sêê_pjo sïï_pjo puu_tä myn_pjo
+sekjykjy_vowelspace_transcribed.TextGrid,True,False,False,ï ÿ ĩ ê ô õ ẽ ä ã : ë í ũ,krii päri tã jy kasü myn inkjëhë sêê pëë puu tä pô pjo mÿn py sïï
+pukkjora_vowelspace_transcribed_2.TextGrid,True,False,False,ũ ĩ õ ẽ,puu_tã pëë_pjo jy_krii sêê_pjo sïï_pjo pôːpy
+kâräpô_vowelspace_transcribed_1.TextGrid,True,False,True,ĩ õ ẽ ã ũ,
+päjreti_vowelspace_transcribed.TextGrid,True,False,False,ĩ õ ẽ ã ũ,mÿn_pjo pëë_pjo jy_krii sêê_pjo sïï_pjo puu_tä myn_pjo
+pyssy_vowelspace_transcribed_1.TextGrid,True,False,False,ï ÿ ê â ô ö ä ë,pôôpy
+tepakriti_vowelspace_transcribed.TextGrid,False,False,False,ũ õ ĩ ẽ,_përï_ mÿn_pjo nânpôô pëë_pjo sôti sese jy_krii sêê_pjo sïï_pjo puu_tä pÿrâ
+jano_vowelspace_aligned.TextGrid,True,False,False,ĩ õ ẽ ã ũ,myn pjo ŋ a u pôôpy i su k s e koŋkɔ h j
+jopy_aligned_more_recent.TextGrid,False,False,False,,
+tuuko_vowelspace_aligned.TextGrid,False,False,False,ï ÿ ê â ô ö ä ë,pâri`
