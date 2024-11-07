@@ -236,6 +236,7 @@ def get_textgrid_files_from_directory(path: Path) -> list[Path]:
         print(colored(text=f'Warning: Directory {str(path)} contains no textgrid files.', color='yellow'), file=sys.stderr)
     return files
 
+
 def write_csv_report(textgrids: list[Recording]):
     if not textgrids:
         raise ValueError('No textgrid validations to write to report!')
