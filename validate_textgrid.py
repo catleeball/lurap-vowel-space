@@ -8,6 +8,7 @@ from ipapy import is_valid_ipa
 from praatio import textgrid
 from praatio.data_classes.textgrid import Textgrid
 from termcolor import colored
+import lib
 
 
 class Recording:
@@ -73,9 +74,9 @@ class Recording:
         """Human-readable summary of the validation"""
         summary = f'''
         FILE:\t{self.textgrid_path.name}
-        TIERS:\t{emoji_bool(self.valid_tiers)}\t{self.textgrid_data.tierNames}
-        PHONES:\t{emoji_bool(self.valid_phones)}
-        WORDS:\t{emoji_bool(self.valid_words)}
+        TIERS:\t{lib.emoji_bool(self.valid_tiers)}\t{self.textgrid_data.tierNames}
+        PHONES:\t{lib.emoji_bool(self.valid_phones)}
+        WORDS:\t{lib.emoji_bool(self.valid_words)}
         '''
 
         if self.invalid_word_set:
@@ -163,17 +164,10 @@ class Recording:
         return validity, invalid_phones
 
 
-def emoji_bool(b: bool) -> str:
-    """For human-readable output, represent booleans as colorful emoji."""
-    if b:
-        return '✅'
-    return '❌'
-
-
 def get_args() -> tuple[list[Path], Path|None]:
     """Parse and validate command line arguments."""
     parser = argparse.ArgumentParser(
-        prog='Textgrid Validator',
+        prog='validate_textgrid.py',
         description='''Validates Praat TextGrid annotations.
 
         Validates the following features of a TextGrid:
@@ -196,45 +190,20 @@ def get_args() -> tuple[list[Path], Path|None]:
     args = parser.parse_args()
 
     if not args.textgrid and not args.directory:
-        raise IOError(colored(text='Error: Please specify a textgrid file with --textgrid or a directory containing textgrid files with --orthography.', color='red'))
+        raise IOError(lib.err_str('Error: Please specify a textgrid file with --textgrid or a directory containing textgrid files with --orthography.'))
 
     if not args.orthography:
-        print(colored(text="Warning: If an orthography file isn't specified with --orthography, words will not be validated for spelling and inclusion in the orthography.", color='yellow'), file=sys.stderr)
+        lib.warn("If an orthography file isn't specified with --orthography, words will not be validated for spelling and inclusion in the orthography.")
 
     if args.orthography and not args.orthography.exists():
-        print(colored(text=f'Warning: Path {str(args.orthography)} does not exist.', color='yellow'), file=sys.stderr)
+        lib.warn(f'Path {str(args.orthography)} does not exist.')
 
-    paths = get_textgrid_file_paths(args)
+    paths = lib.get_textgrid_file_paths(args.textgrid, args.directory)
 
     if not paths:
-        raise IOError(colored(text=f'Error: No textgird files exist in --textgrid or --directory.', color='red'))
+        raise IOError(lib.err_str('No textgird files exist in --textgrid or --directory.'))
 
     return paths, args.orthography
-
-
-def get_textgrid_file_paths(args: argparse.Namespace) -> list[Path]:
-    """Get textgrid files from CLI arguments"""
-    paths: list[Path] = []
-    for path in (args.textgrid, args.directory):
-        path: Path
-        if path and path.exists():
-            if path.is_dir():
-                paths.extend(get_textgrid_files_from_directory(path))
-            else:
-                # Don't assert path.is_file() in case this is a symlink we need to follow
-                paths.append(path)
-        if path and not path.exists():
-            print(colored(text=f'Warning: Path {str(path)} does not exist.', color='yellow'), file=sys.stderr)
-    return paths
-
-
-def get_textgrid_files_from_directory(path: Path) -> list[Path]:
-    """Get files that end in .textgrid from the given directory path. Don't recurse the entire directory structure."""
-    files: list[Path] = [i for i in path.iterdir() if i.is_file()]
-    files = [i for i in files if i.name.lower().endswith('textgrid')]
-    if not files:
-        print(colored(text=f'Warning: Directory {str(path)} contains no textgrid files.', color='yellow'), file=sys.stderr)
-    return files
 
 
 def write_csv_report(textgrids: list[Recording]):
