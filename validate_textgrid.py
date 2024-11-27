@@ -7,6 +7,7 @@ from pathlib import Path
 from ipapy import is_valid_ipa
 from praatio import textgrid
 from praatio.data_classes.textgrid import Textgrid
+from praatio.utilities.constants import Interval
 from termcolor import colored
 import lib
 
@@ -20,8 +21,8 @@ class Recording:
     # Assert whether phones are all single IPA phones
     valid_phones: bool
     # TODO: record times in the file where invalid phones & words are detected
-    invalid_phones: dict = {}
-    invalid_words: dict = {}
+    invalid_phone_entries: list[Interval] = []
+    invalid_word_entries: list[Interval] = []
     # Record when invalid words or phones are detected.
     invalid_word_set: set[str] = set()
     invalid_phone_set: set[str] = set()
@@ -67,8 +68,8 @@ class Recording:
             if orthography:
                 self.orthography = orthography
 
-        self.valid_words, self.invalid_word_set = Recording.validate_words(self.textgrid_data, self.orthography)
-        self.valid_phones, self.invalid_phone_set = Recording.validate_phones(self.textgrid_data)
+        self.valid_words, self.invalid_word_set, self.invalid_word_entries = Recording.validate_words(self.textgrid_data, self.orthography)
+        self.valid_phones, self.invalid_phone_set, self.invalid_phone_entries = Recording.validate_phones(self.textgrid_data)
 
     def __str__(self) -> str:
         """Human-readable summary of the validation"""
@@ -122,7 +123,7 @@ class Recording:
         return orthography
 
     @staticmethod
-    def validate_words(textgrid: Textgrid, orthography: set[str]) -> tuple[bool, set[str]]:
+    def validate_words(textgrid: Textgrid, orthography: set[str]) -> tuple[bool, set[str], list[Interval]]:
         """Check that all words in the word tier exist in the orthography."""
         if not orthography:
             return True, set()
@@ -131,6 +132,7 @@ class Recording:
 
         validity = True
         invalid_words = set()
+        invalid_entries: list[Interval] = []
         word_tier = textgrid.getTier('word')
 
         for entry in word_tier.entries:
@@ -140,16 +142,18 @@ class Recording:
             if word not in orthography:
                 validity = False
                 invalid_words.add(word)
+                invalid_entries.append(entry)
 
-        return validity, invalid_words
+        return validity, invalid_words, invalid_entries
 
     @staticmethod
-    def validate_phones(textgrid: Textgrid) -> tuple[bool, set[str]]:
+    def validate_phones(textgrid: Textgrid) -> tuple[bool, set[str], list[Interval]]:
         """Check that all phones in the phone tier are valid IPA characters."""
         if 'phone' not in textgrid.tierNames:
             return False, set()
         validity = True
         invalid_phones = set()
+        invalid_phone_entries = []
         phone_tier = textgrid.getTier('phone')
 
         for entry in phone_tier.entries:
@@ -160,8 +164,9 @@ class Recording:
                 if not is_valid_ipa(char):
                     validity = False
                     invalid_phones.add(char)
+                    invalid_phone_entries.append(entry)
 
-        return validity, invalid_phones
+        return validity, invalid_phones, invalid_phone_entries
 
 
 def get_args() -> tuple[list[Path], Path|None]:
@@ -218,6 +223,31 @@ def write_csv_report(textgrids: list[Recording]):
             writer.writerow(textgrid.to_dict())
 
 
+def write_invalid_items_csv_report(textgrids: list[Recording]):
+    if not textgrids:
+        raise ValueError('No textgrid validations to write to report!')
+
+    with open('invalid_items_report.csv', 'a', newline='') as csvfile:
+        filednames = ['FILENAME', 'TIER', 'INVALID_TOKEN', 'START_TIME', 'END_TIME']
+        writer = csv.DictWriter(csvfile, fieldnames=filednames)
+        for tg in textgrids:
+            # for invalid_phone in tg.invalid_phone_entries:
+            #     writer.writerow({
+            #         'FILENAME': tg.textgrid_path,
+            #         'TIER': 'word',
+            #         'INVALID_TOKEN': invalid_phone.label,
+            #         'START_TIME': invalid_phone.start,
+            #         'END_TIME': invalid_phone.end,
+            #     })
+            for invalid_word in tg.invalid_word_entries:
+                writer.writerow({
+                    'FILENAME': tg.textgrid_path,
+                    'TIER': 'word',
+                    'INVALID_TOKEN': invalid_word.label,
+                    'START_TIME': invalid_word.start,
+                    'END_TIME': invalid_word.end,
+                })
+
 def main():
     textgrid_paths, orthography_path = get_args()
     # TODO: add cli args for:
@@ -236,6 +266,7 @@ def main():
         raise ValueError('No textgrid validations to write to report!')
 
     write_csv_report(validated_textgrids)
+    write_invalid_items_csv_report(validated_textgrids)
 
 
 if __name__ == '__main__':

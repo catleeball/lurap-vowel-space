@@ -18,7 +18,7 @@ class TranscribedRecording:
     # audio_data: Path | None
 
     @staticmethod
-    def from_paths(textgrid_path: Path, audio_path: Path | None = None) -> 'TranscribedRecording':
+    def from_path(textgrid_path: Path, audio_path: Path | None = None) -> 'TranscribedRecording':
         if not textgrid_path.exists():
             IOError(err_str(f'File does not exsit at {textgrid_path}'))
 
