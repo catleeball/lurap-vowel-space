@@ -1,35 +1,119 @@
-import argparse
 import sys
 from dataclasses import dataclass
+from functools import cached_property
 from pathlib import Path
 
 from praatio import textgrid
 from praatio.data_classes.textgrid import Textgrid
+from praatio.utilities.constants import Interval
 from termcolor import colored
+import intervaltree
+from intervaltree import IntervalTree
 
 
 @dataclass(frozen=True)
+class TierLabelPair:
+    tier: str
+    label: str
+
+
+# @dataclass(frozen=True)
 class TranscribedRecording:
     textgrid_path: Path
     textgrid_data: Textgrid
     audio_path: Path | None
 
-    # TODO: Put audio data into this model
-    # audio_data: Path | None
+    @cached_property
+    def phones(self) -> list[Interval]:
+        """Get list of phones sorted by start time ascending."""
+        return sorted(self.textgrid_data.getTier('phone').entries, key=lambda t: t.start)
 
-    @staticmethod
-    def from_path(textgrid_path: Path, audio_path: Path | None = None) -> 'TranscribedRecording':
+    @cached_property
+    def words(self) -> list[Interval]:
+        """Get list of words sorted by start time ascending."""
+        return sorted(self.textgrid_data.getTier('word').entries, key=lambda t: t.start)
+
+    @cached_property
+    def phrases(self) -> list[Interval]:
+        """Get list of phrases sorted by start time ascending."""
+        return sorted(self.textgrid_data.getTier('phrase').entries, key=lambda t: t.start)
+
+    @cached_property
+    def interval_tree(self) -> IntervalTree:
+        all_intervals = []
+        for phone in self.phones:
+            all_intervals.append((phone.start, phone.end, TierLabelPair('phone', phone.label)))
+        for word in self.words:
+            all_intervals.append((word.start, word.end, TierLabelPair('word', word.label)))
+        for phrase in self.phrases:
+            all_intervals.append((phrase.start, phrase.end, TierLabelPair('word', phrase.phrases)))
+
+        return IntervalTree(intervaltree.Interval(*iv) for iv in all_intervals)
+
+    def interval_at_time(self, timestamp: float | int) -> set[tuple[float, float, TierLabelPair]]:
+        intervals: set[intervaltree.Interval] = self.interval_tree.at(timestamp)
+        return [(i.begin, i.end, i.data) for i in intervals]
+
+    def phrase_at_time(self, timestamp: float | int) -> str:
+        intervals = self.interval_at_time(timestamp)
+        phrase = ''
+        for i in intervals:
+            tier = i[2].tier
+            label = i[2].label
+            if tier == 'phrase':
+                return label
+        return phrase
+
+    def word_at_time(self, timestamp: float | int) -> str:
+        intervals = self.interval_at_time(timestamp)
+        phrase = ''
+        for i in intervals:
+            tier = i[2].tier
+            label = i[2].label
+            if tier == 'word':
+                return label
+        return phrase
+
+    def __init__(self, textgrid_path: Path, audio_path: Path | None = None):
         if not textgrid_path.exists():
             IOError(err_str(f'File does not exsit at {textgrid_path}'))
 
-        textgrid_data = textgrid.openTextgrid(str(textgrid_path), includeEmptyIntervals=False)
+        textgrid_data = textgrid.openTextgrid(str(textgrid_path), includeEmptyIntervals=True)
 
-        return TranscribedRecording(
-            textgrid_path=textgrid_path,
-            textgrid_data=textgrid_data,
-            audio_path=audio_path,
-            # audio_data=
-        )
+        # Asserts textgrid tiers will be named 'phone', 'word', and 'phrase' exactly.
+        if 'phone' not in textgrid_data.tierNames:
+            raise ValueError(f'Phone tier not present or incorrectly named in textgrid {textgrid_path}. Tiers present: {textgrid_data.tierNames}')
+
+        if 'word' not in textgrid_data.tierNames:
+            raise ValueError(f'Word tier not present or incorrectly named in textgrid {textgrid_path}. Tiers present: {textgrid_data.tierNames}')
+
+        if 'phrase' not in textgrid_data.tierNames:
+            raise ValueError(f'Phrase tier not present or incorrectly named in textgrid {textgrid_path}. Tiers present: {textgrid_data.tierNames}')
+
+        self.textgrid_path = textgrid_path
+        self.textgrid_data = textgrid_data
+        self.audio_path = audio_path
+
+    @staticmethod
+    def from_path(textgrid_path: Path, audio_path: Path | None = None) -> 'TranscribedRecording':
+        """Old initialization method from when this was a dataclass. Left here so I don't have to refactor everything."""
+        return TranscribedRecording(textgrid_path, audio_path)
+        # if not textgrid_path.exists():
+        #     IOError(err_str(f'File does not exsit at {textgrid_path}'))
+        #
+        # textgrid_data = textgrid.openTextgrid(str(textgrid_path), includeEmptyIntervals=True)
+        #
+        # # Asserts textgrid tiers will be named 'phone', 'word', and 'phrase' exactly.
+        # if 'phone' not in textgrid_data.tierNames:
+        #     raise ValueError(f'Phone tier not present or incorrectly named in textgrid {textgrid_path}. Tiers present: {textgrid_data.tierNames}')
+        #
+        # if 'word' not in textgrid_data.tierNames:
+        #     raise ValueError(f'Word tier not present or incorrectly named in textgrid {textgrid_path}. Tiers present: {textgrid_data.tierNames}')
+        #
+        # if 'phrase' not in textgrid_data.tierNames:
+        #     raise ValueError(f'Phrase tier not present or incorrectly named in textgrid {textgrid_path}. Tiers present: {textgrid_data.tierNames}')
+        #
+        # return TranscribedRecording(textgrid_path, textgrid_data, audio_path)
 
 
 # ----- File system utilities -----
